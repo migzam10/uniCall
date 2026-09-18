@@ -1,0 +1,24 @@
+from fastapi import APIRouter, Depends, File, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.core.deps import get_current_user
+from app.models.user import User
+from app.schemas.lsc_data import RecognizeResponse
+from app.services.lsc_recognition_service import LSCRecognitionService
+
+router = APIRouter(prefix="/api/v1/lsc", tags=["lsc-recognition"])
+
+
+@router.post("/recognize", response_model=RecognizeResponse)
+async def recognize_sign(
+    video: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    LSC -> texto (sección 9, primer tramo): recibe un clip corto de la
+    persona sorda realizando una seña y devuelve la palabra reconocida,
+    si hay una coincidencia con suficiente confianza.
+    """
+    return await LSCRecognitionService(db).recognize(video)

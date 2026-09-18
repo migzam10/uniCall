@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lsc_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lsc_user
+      POSTGRES_PASSWORD: lsc_password
+      POSTGRES_DB: lsc_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - lsc_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lsc_user -d lsc_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../infrastructure/docker/Dockerfile.backend
+    container_name: lsc_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ../../backend/.env
+    environment:
+      # Sobrescribe DATABASE_URL para apuntar al contenedor `db` en la red
+      # interna de Docker (en vez de localhost).
+      DATABASE_URL: postgresql+asyncpg://lsc_user:lsc_password@db:5432/lsc_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../backend:/app
+
+volumes:
+  lsc_db_data:
