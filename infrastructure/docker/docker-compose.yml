@@ -33,7 +33,7 @@ services:
       # interna de Docker (en vez de localhost).
       DATABASE_URL: postgresql+asyncpg://lsc_user:lsc_password@db:5432/lsc_db
     ports:
-      - "8000:8000"
+      - "8100:8100"
     volumes:
       - ../../backend:/app
 
