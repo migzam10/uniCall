@@ -81,7 +81,30 @@ A continuación, se detalla cómo la IA o el programador debe abordar el código
 
 ---
 
-## 5. REGLAS ESTRICTAS DE DESARROLLO
+## 5. DECISIONES PENDIENTES ANTES DE EMPEZAR LA FASE 6
+
+Al reconstruir la especificación original perdida (ver `documentation/ESPECIFICACION_RECONSTRUIDA.md`), quedó claro que las Fases 1 a 5 tuvieron un nivel de detalle (más de 30 secciones) que las Fases 6, 7 y 8 todavía no tienen — hoy son 2-3 frases cada una. Antes de escribir código de estas fases, el equipo debe resolver y dejar documentadas aquí las siguientes decisiones, con el mismo rigor que se usó para elegir STT/TTS/DTW.
+
+### 5.1 Fase 6 (Avatar): falta el checklist que sí se usó para STT/TTS/DTW
+*   **Formato/rig del modelo 3D:** confirmar que `model_viewer_plus` / `flutter_3d_controller` soportan el esqueleto elegido antes de generar o comprar animaciones sobre él.
+*   **Transición entre animaciones consecutivas de una frase:** ¿corte seco o interpolación (blend)? Afecta directamente la naturalidad, que es la prioridad #4 definida en la especificación (precisión del movimiento > claridad de las señas > sincronización > naturalidad > rendimiento).
+*   **Qué hacer cuando una palabra de la frase NO tiene animación documentada:** en línea con la regla de "nunca inventar" (Sección 29 de la especificación reconstruida), decidir explícitamente entre (a) omitir la palabra, (b) mostrar solo el subtítulo de esa palabra sin animación, o (c) avisar que la traducción está incompleta. No dejarlo implícito en el código de quien lo programe.
+
+### 5.2 Fase 7 (Integración): hay una decisión arquitectónica pendiente, no una nota al margen
+El punto 2 de la implementación de Fase 7 dice literalmente "si esto es muy complejo en Dart, enviar fotogramas" — eso es en realidad una decisión de arquitectura (extracción de landmarks *client-side* en Flutter vs. *server-side* en el backend) que cambia la latencia, el costo de servidor y el contrato del WebSocket. Debe decidirse y documentarse **antes** de escribir el código de esta fase, no resolverse como fallback improvisado a mitad de desarrollo.
+
+### 5.3 Fase 8 (Calibración): falta una definición de "terminado"
+"Calibrar el umbral `LSC_MAX_DTW_DISTANCE`" no es una tarea con fin claro sin un criterio numérico. Antes de escribir el script de `ai/evaluation/`, definir aquí qué métrica y qué valor mínimo se considera aceptable (ej. recall/precisión/F1 sobre el vocabulario piloto — ver Sección 28 de la especificación reconstruida). Sin esto, la fase nunca tiene un "listo" objetivo.
+
+### 5.4 Transversal: manejo de fallos (no está cubierto en ninguna fase actual)
+Ninguna fase documenta qué debe pasar cuando algo falla a mitad de una llamada. Para una aplicación de accesibilidad esto no es un detalle secundario — es parte del producto. Como mínimo, documentar el comportamiento esperado ante:
+*   Caída de la conexión a internet durante la llamada.
+*   La cámara pierde de vista la seña (mala iluminación, mano fuera de cuadro) a mitad de una frase.
+*   El backend de reconocimiento/traducción no responde o tarda demasiado.
+
+---
+
+## 6. REGLAS ESTRICTAS DE DESARROLLO
 
 *   **Nunca modifiques la arquitectura base para hacer atajos.** La abstracción `AI Engine` (STT, TTS, Visión) debe mantenerse para poder cambiar modelos a futuro.
 *   **Separar Entornos:** El entrenamiento/procesamiento de video es asíncrono y separado de la inferencia en tiempo real. 
