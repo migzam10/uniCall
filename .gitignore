@@ -1,0 +1,102 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python / Backend / AI
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.venv
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# AI Models and Datasets
+*.pth
+*.h5
+*.onnx
+*.pt
+*.tflite
+*.pb
+# We might not want to ignore datasets completely, but just in case for large files:
+*.csv
+*.tsv
+*.tfrecord
+*.mp4
+*.wav
+
+# Flutter / Dart / Frontend
+frontend/flutter_app/.dart_tool/
+frontend/flutter_app/.packages
+frontend/flutter_app/.pub-cache/
+frontend/flutter_app/.pub/
+frontend/flutter_app/build/
+frontend/flutter_app/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+frontend/flutter_app/ios/Flutter/App.framework
+frontend/flutter_app/ios/Flutter/Flutter.framework
+frontend/flutter_app/ios/Flutter/Flutter.podspec
+frontend/flutter_app/ios/Flutter/Generated.xcconfig
+frontend/flutter_app/ios/Flutter/app.flx
+frontend/flutter_app/ios/Flutter/app.zip
+frontend/flutter_app/ios/Flutter/flutter_assets/
+frontend/flutter_app/ios/Flutter/flutter_export_environment.sh
+frontend/flutter_app/ios/ServiceDefinitions.json
+frontend/flutter_app/ios/Runner/GeneratedPluginRegistrant.*
+frontend/flutter_app/linux/flutter/generated_plugin_registrant.cc
+frontend/flutter_app/linux/flutter/generated_plugins.cmake
+frontend/flutter_app/macos/Flutter/GeneratedPluginRegistrant.swift
+frontend/flutter_app/macos/Flutter/ephemeral/
+frontend/flutter_app/windows/flutter/generated_plugin_registrant.cc
+frontend/flutter_app/windows/flutter/generated_plugins.cmake
+*.log
+
+# Docker
+.dockerignore
+
+# Misc
+temp/
+tmp/
+*.tmp
+*.bak
