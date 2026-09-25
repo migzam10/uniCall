@@ -139,3 +139,18 @@ class RecognizeResponse(BaseModel):
     confidence: float | None = None
     message: str | None = None
     closest_word: str | None = None
+
+
+# --- Traducción LSC (Fase 6) ---
+
+class TranslationSequenceItem(BaseModel):
+    word: str
+    sign_id: uuid.UUID | None
+    found_in_db: bool
+
+class TranslateTextRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+class TranslateTextResponse(BaseModel):
+    original_text: str
+    sequence: list[TranslationSequenceItem]

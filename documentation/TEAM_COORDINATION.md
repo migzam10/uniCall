@@ -11,8 +11,23 @@ Como somos 3 personas trabajando en áreas distintas, cada vez que alguien haga 
 **Estado Actual:** Iniciando desarrollo de la Fase 6 (NLP) y estructurando pruebas para la Fase 8 (Calibración DTW).
 
 ### 📢 Notificación de Cambios (Lo que estoy haciendo)
-* **Motor de Traducción (NLP):** Estoy construyendo el motor en `backend/app/ai/translation/nlp_engine.py`. Este motor recibirá el texto en español hablado por la persona oyente, eliminará *stop-words* (artículos, preposiciones) y adaptará la gramática para que devuelva una lista de palabras/IDs compatibles con la base de datos de LSC.
-* **Calibración de MediaPipe + DTW:** Estoy armando los scripts en `ai/evaluation/` para medir la distancia matemática de los movimientos y ajustar el umbral de precisión (`LSC_MAX_DTW_DISTANCE`).
+* **[2026-09-24 22:50] Motor de Traducción y Endpoint Completados (Fase 6):** 
+  He completado la integración del motor NLP con la base de datos y expuesto el endpoint para el Frontend.
+  * Archivos modificados: `nlp_engine.py`, `lsc_data.py`, `lsc_recognition.py`.
+  * **Nuevo Endpoint para Frontend:** `POST /api/v1/lsc/translate`.
+  * **Contrato (Request):** `{"text": "Hola, yo quiero comer una manzana roja."}`
+  * **Contrato (Response):** Devuelve la secuencia exacta para el Avatar 3D, indicando si la seña está validada en BD (`found_in_db`):
+    ```json
+    {
+      "original_text": "Hola, yo quiero comer una manzana roja.",
+      "sequence": [
+        {"word": "HOLA", "sign_id": "uuid-1234", "found_in_db": true},
+        {"word": "YO", "sign_id": null, "found_in_db": false},
+        {"word": "QUERER", "sign_id": "uuid-5678", "found_in_db": true}
+      ]
+    }
+    ```
+* **[2026-09-24 22:00] Calibración de MediaPipe + DTW:** Estoy armando los scripts en `ai/evaluation/` para medir la distancia matemática de los movimientos y ajustar el umbral de precisión (`LSC_MAX_DTW_DISTANCE`).
 
 ### 🎯 Peticiones al FRONTEND (Desarrollador 2)
 1. **[CRÍTICO] MediaPipe en el Celular:** Para la inferencia en tiempo real (cuando la persona sorda hace señas a la cámara), enviar video en vivo al servidor es muy pesado y generará muchísima latencia. **Por favor investiga si puedes integrar MediaPipe Holistic directamente en Flutter** (existen paquetes como `google_mlkit_pose_detection` o integraciones nativas).
