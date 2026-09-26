@@ -66,6 +66,13 @@ venv.bak/
 *.tfrecord
 *.mp4
 *.wav
+*.glb
+*.gltf
+*.db
+
+# Contenido subido por usuarios (videos LSC, animaciones del avatar) —
+# nunca se versiona, vive solo en el servidor donde corre el backend.
+backend/storage/
 
 # Flutter / Dart / Frontend
 frontend/flutter_app/.dart_tool/
