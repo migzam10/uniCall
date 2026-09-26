@@ -49,3 +49,4 @@ class LSCSign(Base):
     )
 
     videos: Mapped[list["LSCVideo"]] = relationship(back_populates="sign", cascade="all, delete-orphan")
+    animations: Mapped[list["LSCAnimation"]] = relationship(back_populates="sign", cascade="all, delete-orphan")

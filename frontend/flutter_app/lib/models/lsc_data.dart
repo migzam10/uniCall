@@ -100,6 +100,33 @@ class LscVideo {
       );
 }
 
+class LscAnimation {
+  const LscAnimation({
+    required this.id,
+    required this.signId,
+    required this.url,
+    required this.originalFilename,
+    required this.sizeBytes,
+    required this.isActive,
+  });
+
+  final String id;
+  final String signId;
+  final String url;
+  final String originalFilename;
+  final int sizeBytes;
+  final bool isActive;
+
+  factory LscAnimation.fromJson(Map<String, dynamic> json) => LscAnimation(
+        id: json['id'] as String,
+        signId: json['sign_id'] as String,
+        url: json['url'] as String,
+        originalFilename: json['original_filename'] as String,
+        sizeBytes: json['size_bytes'] as int,
+        isActive: json['is_active'] as bool,
+      );
+}
+
 class LscSignWithVideos extends LscSign {
   const LscSignWithVideos({
     required super.id,
@@ -112,9 +139,11 @@ class LscSignWithVideos extends LscSign {
     required super.version,
     required super.isActive,
     required this.videos,
+    required this.animations,
   });
 
   final List<LscVideo> videos;
+  final List<LscAnimation> animations;
 
   factory LscSignWithVideos.fromJson(Map<String, dynamic> json) => LscSignWithVideos(
         id: json['id'] as String,
@@ -127,6 +156,7 @@ class LscSignWithVideos extends LscSign {
         version: json['version'] as int,
         isActive: json['is_active'] as bool,
         videos: (json['videos'] as List).map((e) => LscVideo.fromJson(e)).toList(),
+        animations: (json['animations'] as List).map((e) => LscAnimation.fromJson(e)).toList(),
       );
 }
 

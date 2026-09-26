@@ -19,3 +19,4 @@ from app.models.lsc_sign import LSCSign, LSCSignStatus  # noqa: F401
 from app.models.lsc_video import LSCVideo  # noqa: F401
 from app.models.lsc_phrase import LSCPhrase, LSCPhraseSign  # noqa: F401
 from app.models.lsc_sign_template import LSCSignTemplate  # noqa: F401
+from app.models.lsc_animation import LSCAnimation  # noqa: F401

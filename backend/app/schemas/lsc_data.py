@@ -73,6 +73,7 @@ class SignOut(BaseModel):
 
 class SignWithVideosOut(SignOut):
     videos: list["VideoOut"] = []
+    animations: list["AnimationOut"] = []
 
 
 # --- Videos ---
@@ -86,6 +87,47 @@ class VideoOut(BaseModel):
     size_bytes: int
     is_active: bool
     created_at: datetime
+
+
+# --- Animaciones del avatar 3D (Fase 6) ---
+
+class AnimationOut(BaseModel):
+    id: uuid.UUID
+    sign_id: uuid.UUID
+    url: str
+    original_filename: str
+    content_type: str
+    size_bytes: int
+    is_active: bool
+    created_at: datetime
+
+
+class TranslationItemEnriched(BaseModel):
+    """
+    Item de una secuencia de traducción (texto -> LSC) ya enriquecido con
+    disponibilidad de animación 3D. `word`/`sign_id`/`found_in_db` vienen
+    del motor NLP (app/ai/translation/nlp_engine.py, Fase 6 IA); esta clase
+    vive en la capa de datos LSC para no acoplar el motor NLP a la tabla de
+    animaciones — se conecta desde el servicio (ver
+    LSCDataService.enrich_translation_sequence).
+    """
+    word: str
+    sign_id: uuid.UUID | None = None
+    found_in_db: bool
+    # Sección 29 ("nunca inventar"): si la seña no está documentada o no
+    # tiene animación cargada todavía, has_animation queda en False y el
+    # frontend debe mostrar solo el subtítulo de esa palabra, nunca un
+    # avatar inventado.
+    has_animation: bool
+    animation_url: str | None = None
+
+
+class TranslationSequenceEnriched(BaseModel):
+    original_text: str
+    sequence: list[TranslationItemEnriched]
+    # False si alguna palabra no tiene seña documentada o animación cargada
+    # (sección 29): el frontend debe avisar que la traducción es incompleta.
+    complete: bool
 
 
 # --- Frases ---
