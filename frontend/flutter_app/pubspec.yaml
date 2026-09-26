@@ -31,6 +31,9 @@ dependencies:
   # Panel administrativo: selección de archivos de video
   file_picker: ^8.1.2
 
+  # Avatar 3D (Fase 6): visor de modelos .glb/.gltf con animaciones LSC
+  model_viewer_plus: ^1.10.0
+
   # Almacenamiento seguro de tokens (nunca en texto plano)
   flutter_secure_storage: ^9.2.2
 
