@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.deps import require_roles
 from app.models.user import User, UserRole
 from app.schemas.lsc_data import (
+    AnimationOut,
     CategoryCreate,
     CategoryOut,
     CategoryUpdate,
@@ -109,6 +110,30 @@ async def process_video(video_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     video (sección 12).
     """
     return await LSCRecognitionService(db).process_video(video_id)
+
+
+# --- Animaciones del avatar 3D (Fase 6) ---
+
+@router.post("/signs/{sign_id}/animations", response_model=AnimationOut, status_code=201)
+async def upload_sign_animation(
+    sign_id: uuid.UUID,
+    animation: UploadFile = File(...),
+    current_user: User = Depends(require_roles(UserRole.ADMINISTRADOR)),
+    db: AsyncSession = Depends(get_db),
+):
+    """Carga una animación 3D (.glb/.gltf) del avatar para una seña (Fase 6)."""
+    return await LSCDataService(db).upload_animation(sign_id, animation, current_user)
+
+
+@router.get("/signs/{sign_id}/animations", response_model=list[AnimationOut])
+async def list_sign_animations(sign_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    return await LSCDataService(db).list_animations(sign_id)
+
+
+@router.delete("/animations/{animation_id}", status_code=204)
+async def delete_animation(animation_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    await LSCDataService(db).delete_animation(animation_id)
+    return None
 
 
 # --- Frases ---
