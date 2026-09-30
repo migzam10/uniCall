@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.lsc_animation import LSCAnimation
 from app.models.lsc_category import LSCCategory
 from app.models.lsc_phrase import LSCPhrase, LSCPhraseSign
 from app.models.lsc_sign import LSCSign, LSCSignStatus
@@ -52,7 +53,11 @@ class LSCDataRepository:
         return await self.db.get(LSCSign, sign_id)
 
     async def get_sign_with_videos(self, sign_id: uuid.UUID) -> LSCSign | None:
-        stmt = select(LSCSign).where(LSCSign.id == sign_id).options(selectinload(LSCSign.videos))
+        stmt = (
+            select(LSCSign)
+            .where(LSCSign.id == sign_id)
+            .options(selectinload(LSCSign.videos), selectinload(LSCSign.animations))
+        )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -86,6 +91,37 @@ class LSCDataRepository:
     async def delete_video(self, video: LSCVideo) -> None:
         await self.db.delete(video)
         await self.db.commit()
+
+    # --- Animaciones (Fase 6) ---
+
+    async def add_animation(self, animation: LSCAnimation) -> LSCAnimation:
+        self.db.add(animation)
+        await self.db.commit()
+        await self.db.refresh(animation)
+        return animation
+
+    async def get_animation(self, animation_id: uuid.UUID) -> LSCAnimation | None:
+        return await self.db.get(LSCAnimation, animation_id)
+
+    async def list_animations_for_sign(self, sign_id: uuid.UUID) -> list[LSCAnimation]:
+        stmt = select(LSCAnimation).where(LSCAnimation.sign_id == sign_id).order_by(LSCAnimation.created_at)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def delete_animation(self, animation: LSCAnimation) -> None:
+        await self.db.delete(animation)
+        await self.db.commit()
+
+    async def get_latest_active_animation_for_sign(self, sign_id: uuid.UUID) -> LSCAnimation | None:
+        """Animación más reciente activa de una seña, usada al enriquecer /translate."""
+        stmt = (
+            select(LSCAnimation)
+            .where(LSCAnimation.sign_id == sign_id, LSCAnimation.is_active.is_(True))
+            .order_by(LSCAnimation.created_at.desc())
+            .limit(1)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     # --- Frases ---
 

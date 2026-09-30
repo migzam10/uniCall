@@ -28,6 +28,7 @@ Como somos 3 personas trabajando en áreas distintas, cada vez que alguien haga 
     }
     ```
 * **[2026-09-24 22:00] Calibración de MediaPipe + DTW:** Estoy armando los scripts en `ai/evaluation/` para medir la distancia matemática de los movimientos y ajustar el umbral de precisión (`LSC_MAX_DTW_DISTANCE`).
+* **[2026-09-24 23:30] Pipeline Machine Learning LSTM (Fase 8):** Creados scripts para construir dataset y entrenar un modelo LSTM dado que el DTW puro presenta superposición de distancias.
 
 ### 🎯 Peticiones al FRONTEND (Desarrollador 2)
 1. **[CRÍTICO] MediaPipe en el Celular:** Para la inferencia en tiempo real (cuando la persona sorda hace señas a la cámara), enviar video en vivo al servidor es muy pesado y generará muchísima latencia. **Por favor investiga si puedes integrar MediaPipe Holistic directamente en Flutter** (existen paquetes como `google_mlkit_pose_detection` o integraciones nativas).
@@ -41,23 +42,26 @@ Como somos 3 personas trabajando en áreas distintas, cada vez que alguien haga 
 ---
 
 ## 🌐 Frontend & Mobile (Log y Peticiones)
-**Desarrollador:** [Nombre del encargado de Flutter]
-**Estado Actual:** [Pendiente de actualizar]
+**Desarrollador:** Brandon
+**Estado Actual:** Cubriendo Frontend + Backend/Arquitectura completos (Miguel se queda con IA/NLP). Arrancando la Fase 6 (Avatar 3D): rama `feature/avatar-3d-library`.
 
 ### 📢 Notificación de Cambios
-* *(Escribe aquí tus cambios cuando inicies tu trabajo)*
+* Respuesta a la petición #2 de Miguel: sí se va a integrar `model_viewer_plus` para el visor `.glb`/`.gltf` del avatar en la pantalla de videollamada.
+* Todavía sin resolver la petición #1 (MediaPipe client-side en Flutter) — es la decisión de arquitectura de Fase 7, se aborda después de cerrar la Fase 6.
 
 ### 🎯 Peticiones a IA o Backend
-* *(Escribe aquí qué necesitas que te preparemos)*
+* Ninguna por ahora.
 
 ---
 
 ## ⚙️ Backend & Arquitectura (Log y Peticiones)
-**Desarrollador:** [Nombre del encargado de Python/BD]
-**Estado Actual:** [Pendiente de actualizar]
+**Desarrollador:** Brandon
+**Estado Actual:** Fase 6 (Biblioteca de Animaciones del Avatar) en curso, rama `feature/avatar-3d-library`.
 
 ### 📢 Notificación de Cambios
-* *(Escribe aquí tus cambios cuando inicies tu trabajo)*
+* **Nueva tabla `LSCAnimation`** (mismo patrón que `LSCVideo`): cada seña puede tener animaciones `.glb`/`.gltf` cargadas vía el panel admin (`POST/GET /api/v1/admin/lsc/signs/{sign_id}/animations`, `DELETE /api/v1/admin/lsc/animations/{id}`). `GET /api/v1/admin/lsc/signs/{id}` ahora también devuelve `animations` además de `videos`.
+* **Nuevo contrato para `/api/v1/lsc/translate`** (Miguel, ojo con esto): la respuesta de tu `nlp_engine.py` se va a enriquecer con disponibilidad de animación antes de llegar al frontend. Ya armé `LSCDataService.enrich_translation_sequence(original_text, raw_sequence)` que toma tu output crudo (`[{"word", "sign_id", "found_in_db"}, ...]`) y agrega a cada item `has_animation: bool` y `animation_url: str | None`, más un `complete: bool` a nivel de toda la respuesta. **No lo conecté todavía a tu endpoint** porque tu rama `feature/fase6-nlp-engine` (PR #7) sigue sin mergear (bloqueado por el fix de spaCy que te comenté en el PR). En cuanto mergees, el cambio en `lsc_recognition.py` es de 3 líneas — avísame o hazlo tú mismo, está documentado en el código.
+* Política de "nunca inventar" ya resuelta para el avatar: si una palabra no tiene seña o no tiene animación cargada, el frontend muestra solo el subtítulo de esa palabra (nunca un avatar inventado), y si falta cualquiera en la frase completa se marca `complete=false` para avisar que la traducción quedó incompleta.
 
 ### 🎯 Peticiones a Frontend o IA
-* *(Escribe aquí qué necesitas que te preparemos)*
+* A Miguel: revisa el punto de arriba sobre `/translate` cuando retomes el PR #7. Ya quedó integrado en este último merge.

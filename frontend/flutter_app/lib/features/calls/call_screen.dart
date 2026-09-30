@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 
 import '../../config/app_theme.dart';
 import '../../core/api_exception.dart';
@@ -50,7 +51,11 @@ class _CallScreenState extends ConsumerState<CallScreen> {
 
       final iceServers = await ref.read(callRepositoryProvider).getIceServers();
       final signaling = SignalingClient(callId: widget.callId, accessToken: token);
-      final engine = CallEngine(signaling: signaling, iceServers: iceServers);
+      final engine = CallEngine(
+        signaling: signaling,
+        translationRepository: ref.read(lscTranslationRepositoryProvider),
+        iceServers: iceServers,
+      );
 
       engine.addListener(_onEngineUpdate);
       await engine.initialize();
@@ -226,6 +231,16 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                   if (!engine.isCameraEnabled) const _StatusChip(icon: Icons.videocam_off, label: 'Cámara apagada'),
                 ],
               ),
+            ),
+
+            // Avatar 3D (Fase 6): reproduce la traducción a LSC del subtítulo
+            // recibido. Si no hay animación disponible para la palabra
+            // actual, cae al subtítulo de texto de abajo (nunca inventa).
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 210,
+              child: _AvatarOverlay(engine: engine),
             ),
 
             // Subtítulos (sección 17: texto de apoyo en la videollamada)
@@ -408,6 +423,62 @@ class _CaptionsOverlay extends ConsumerWidget {
           const SizedBox(height: 8),
           _CaptionBubble(label: 'Tu texto', text: engine.localCaption!),
         ],
+      ],
+    );
+  }
+}
+
+class _AvatarOverlay extends ConsumerWidget {
+  const _AvatarOverlay({required this.engine});
+
+  final CallEngine engine;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(meProvider).valueOrNull?.preferences;
+    final showAvatar = prefs?.showAvatar ?? true;
+    if (!showAvatar) return const SizedBox.shrink();
+
+    final translation = engine.currentTranslation;
+    final item = engine.currentTranslationItem;
+    if (translation == null || item == null) return const SizedBox.shrink();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (!translation.complete) const _StatusChip(icon: Icons.info_outline, label: 'Traducción incompleta'),
+        const SizedBox(height: 8),
+        Container(
+          height: 160,
+          width: 160,
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: item.hasAnimation
+              ? ModelViewer(
+                  key: ValueKey(item.animationUrl),
+                  src: item.animationUrl!,
+                  alt: 'Seña: ${item.word}',
+                  autoPlay: true,
+                  cameraControls: false,
+                  disableZoom: true,
+                  ar: false,
+                  backgroundColor: Colors.transparent,
+                )
+              // Sección 29 ("nunca inventar"): si la palabra actual no tiene
+              // animación documentada, se muestra solo el texto, nunca se
+              // simula un avatar.
+              : Center(
+                  child: Text(
+                    item.word,
+                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+        ),
       ],
     );
   }

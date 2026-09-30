@@ -7,6 +7,7 @@ import '../repositories/auth_repository.dart';
 import '../repositories/call_repository.dart';
 import '../repositories/contact_repository.dart';
 import '../repositories/lsc_admin_repository.dart';
+import '../repositories/lsc_translation_repository.dart';
 import '../repositories/speech_repository.dart';
 import '../repositories/user_repository.dart';
 
@@ -38,4 +39,8 @@ final speechRepositoryProvider = Provider<SpeechRepository>(
 
 final lscAdminRepositoryProvider = Provider<LscAdminRepository>(
   (ref) => LscAdminRepository(ref.watch(apiClientProvider)),
+);
+
+final lscTranslationRepositoryProvider = Provider<LscTranslationRepository>(
+  (ref) => LscTranslationRepository(ref.watch(apiClientProvider)),
 );

@@ -17,6 +17,7 @@ class LscSignDetailScreen extends ConsumerStatefulWidget {
 
 class _LscSignDetailScreenState extends ConsumerState<LscSignDetailScreen> {
   bool _uploading = false;
+  bool _uploadingAnimation = false;
 
   Future<void> _uploadVideo() async {
     final result = await FilePicker.platform.pickFiles(
@@ -37,6 +38,29 @@ class _LscSignDetailScreenState extends ConsumerState<LscSignDetailScreen> {
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _uploadAnimation() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['glb', 'gltf'],
+      withData: false,
+    );
+    if (result == null || result.files.single.path == null) return;
+
+    final file = result.files.single;
+    setState(() => _uploadingAnimation = true);
+    try {
+      await ref.read(lscAdminRepositoryProvider).uploadAnimation(widget.signId, file.path!, file.name);
+      ref.invalidate(lscSignDetailProvider(widget.signId));
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingAnimation = false);
     }
   }
 
@@ -123,6 +147,28 @@ class _LscSignDetailScreenState extends ConsumerState<LscSignDetailScreen> {
               )
             else
               ...sign.videos.map((video) => _VideoTile(video: video, signId: widget.signId)),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Text('Animaciones 3D del avatar', style: Theme.of(context).textTheme.titleMedium),
+                const Spacer(),
+                FilledButton.icon(
+                  onPressed: _uploadingAnimation ? null : _uploadAnimation,
+                  icon: _uploadingAnimation
+                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.view_in_ar_outlined),
+                  label: Text(_uploadingAnimation ? 'Subiendo...' : 'Cargar animación'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (sign.animations.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('Todavía no hay animaciones del avatar para esta seña.'),
+              )
+            else
+              ...sign.animations.map((animation) => _AnimationTile(animation: animation, signId: widget.signId)),
           ],
         ),
       ),
@@ -203,6 +249,36 @@ class _VideoTileState extends ConsumerState<_VideoTile> {
               child: Text(_processError!, style: const TextStyle(color: Color(0xFFC62828), fontSize: 13)),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _AnimationTile extends ConsumerWidget {
+  const _AnimationTile({required this.animation, required this.signId});
+  final LscAnimation animation;
+  final String signId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE1E5EA)),
+      ),
+      child: ListTile(
+        leading: const Icon(Icons.view_in_ar_outlined, color: Color(0xFF1755C7)),
+        title: Text(animation.originalFilename),
+        subtitle: Text('${(animation.sizeBytes / 1024).toStringAsFixed(0)} KB'),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline, color: Color(0xFFC62828)),
+          onPressed: () async {
+            await ref.read(lscAdminRepositoryProvider).deleteAnimation(animation.id);
+            ref.invalidate(lscSignDetailProvider(signId));
+          },
+        ),
       ),
     );
   }

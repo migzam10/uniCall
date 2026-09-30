@@ -126,6 +126,37 @@ class LscAdminRepository {
     }
   }
 
+  // --- Animaciones del avatar 3D (Fase 6) ---
+
+  Future<LscAnimation> uploadAnimation(String signId, String filePath, String filename) async {
+    try {
+      final formData = FormData.fromMap({
+        'animation': await MultipartFile.fromFile(filePath, filename: filename),
+      });
+      final response = await _apiClient.dio.post('/admin/lsc/signs/$signId/animations', data: formData);
+      return LscAnimation.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _apiClient.mapError(e);
+    }
+  }
+
+  Future<List<LscAnimation>> listAnimations(String signId) async {
+    try {
+      final response = await _apiClient.dio.get('/admin/lsc/signs/$signId/animations');
+      return (response.data as List).map((e) => LscAnimation.fromJson(e)).toList();
+    } on DioException catch (e) {
+      throw _apiClient.mapError(e);
+    }
+  }
+
+  Future<void> deleteAnimation(String animationId) async {
+    try {
+      await _apiClient.dio.delete('/admin/lsc/animations/$animationId');
+    } on DioException catch (e) {
+      throw _apiClient.mapError(e);
+    }
+  }
+
   // --- Frases ---
 
   Future<List<LscPhrase>> listPhrases() async {
