@@ -1,6 +1,7 @@
 # OS generated files
 .DS_Store
 .DS_Store?
+*.DS_Store
 ._*
 .Spotlight-V100
 .Trashes
@@ -100,3 +101,4 @@ temp/
 tmp/
 *.tmp
 *.bak
+*.pdf

@@ -40,32 +40,40 @@ def _get_holistic_module():
 
 POSE_LANDMARKS = 33
 HAND_LANDMARKS = 21
-FACE_LANDMARKS = 468
+FACE_LANDMARKS = 0  # Ignoramos el rostro para el cálculo de DTW por el ruido que genera
 
 # Por landmark: x, y, z (+ visibility solo en pose)
-FRAME_VECTOR_SIZE = POSE_LANDMARKS * 4 + HAND_LANDMARKS * 3 * 2 + FACE_LANDMARKS * 3
+FRAME_VECTOR_SIZE = POSE_LANDMARKS * 4 + HAND_LANDMARKS * 3 * 2
 
-
-def _landmarks_to_array(landmark_list, with_visibility: bool, count: int) -> np.ndarray:
+def _landmarks_to_array(landmark_list, with_visibility: bool, count: int, anchor: tuple[float, float, float] = (0.0, 0.0, 0.0)) -> np.ndarray:
     if landmark_list is None:
         width = 4 if with_visibility else 3
         return np.zeros(count * width, dtype=np.float32)
 
     values = []
+    ax, ay, az = anchor
     for lm in landmark_list.landmark:
-        values.extend([lm.x, lm.y, lm.z])
+        values.extend([lm.x - ax, lm.y - ay, lm.z - az])
         if with_visibility:
             values.append(lm.visibility)
     return np.array(values, dtype=np.float32)
 
 
 def extract_frame_vector(results) -> np.ndarray:
-    """Convierte un resultado de Holistic en un único vector plano."""
-    pose = _landmarks_to_array(results.pose_landmarks, with_visibility=True, count=POSE_LANDMARKS)
-    left_hand = _landmarks_to_array(results.left_hand_landmarks, with_visibility=False, count=HAND_LANDMARKS)
-    right_hand = _landmarks_to_array(results.right_hand_landmarks, with_visibility=False, count=HAND_LANDMARKS)
-    face = _landmarks_to_array(results.face_landmarks, with_visibility=False, count=FACE_LANDMARKS)
-    return np.concatenate([pose, left_hand, right_hand, face])
+    """Convierte un resultado de Holistic en un único vector plano normalizado."""
+    # 1. Encontrar el punto de anclaje (Nariz = landmark 0 de la pose)
+    anchor = (0.0, 0.0, 0.0)
+    if results.pose_landmarks and len(results.pose_landmarks.landmark) > 0:
+        nose = results.pose_landmarks.landmark[0]
+        anchor = (nose.x, nose.y, nose.z)
+
+    # 2. Extraer y normalizar restando el ancla
+    pose = _landmarks_to_array(results.pose_landmarks, with_visibility=True, count=POSE_LANDMARKS, anchor=anchor)
+    left_hand = _landmarks_to_array(results.left_hand_landmarks, with_visibility=False, count=HAND_LANDMARKS, anchor=anchor)
+    right_hand = _landmarks_to_array(results.right_hand_landmarks, with_visibility=False, count=HAND_LANDMARKS, anchor=anchor)
+    
+    # 3. Concatenar (omitimos 'face' para evitar la explosión matemática de 468 puntos)
+    return np.concatenate([pose, left_hand, right_hand])
 
 
 def has_hand_detection(results) -> bool:
