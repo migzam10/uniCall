@@ -90,8 +90,19 @@ Al reconstruir la especificación original perdida (ver `documentation/ESPECIFIC
 *   **Transición entre animaciones consecutivas de una frase — DECIDIDO:** corte seco con duración fija por palabra (no interpolación/blend en este primer corte). El blending queda como TODO explícito para una fase posterior, documentado en `CallEngine`.
 *   **Qué hacer cuando una palabra de la frase NO tiene animación documentada — DECIDIDO:** se combinan las opciones (b) y (c). A nivel de palabra: se muestra solo el subtítulo de esa palabra, nunca se inventa un avatar (sección 29). A nivel de frase completa: si falta cualquier palabra (sin seña documentada o sin animación cargada), se marca la traducción como incompleta y el frontend debe avisarlo visiblemente. Implementado en `backend/app/services/lsc_data_service.py::enrich_translation_sequence`.
 
-### 5.2 Fase 7 (Integración): hay una decisión arquitectónica pendiente, no una nota al margen
-El punto 2 de la implementación de Fase 7 dice literalmente "si esto es muy complejo en Dart, enviar fotogramas" — eso es en realidad una decisión de arquitectura (extracción de landmarks *client-side* en Flutter vs. *server-side* en el backend) que cambia la latencia, el costo de servidor y el contrato del WebSocket. Debe decidirse y documentarse **antes** de escribir el código de esta fase, no resolverse como fallback improvisado a mitad de desarrollo.
+### 5.2 Fase 7 (Integración): decisión arquitectónica — ✅ DECIDIDO (2026-10-16)
+El punto 2 de la implementación de Fase 7 decía literalmente "si esto es muy complejo en Dart, enviar fotogramas" — eso era en realidad una decisión de arquitectura (extracción de landmarks *client-side* en Flutter vs. *server-side* en el backend) que cambia la latencia, el costo de servidor y el contrato del WebSocket.
+
+**Investigado y decidido: extracción *server-side* (Plan B), no client-side.**
+
+Se investigó el ecosistema real de paquetes Flutter para MediaPipe (ver detalle completo en `documentation/TEAM_COORDINATION.md`, sección Frontend & Mobile). Resumen de por qué se descarta client-side para esta fase:
+
+*   **No existe un paquete "Holistic" unificado** en Flutter (ni siquiera el MediaPipe Tasks API nativo de Google lo ofrece ya — solo tareas separadas de pose y manos).
+*   Los dos paquetes candidatos (`hand_landmarker` para manos, `flutter_mp_pose_landmarker` para pose) son de un solo mantenedor cada uno, de muy baja adopción, y **ninguno soporta Web** — contradice el alcance multiplataforma del proyecto (Android/iOS/Web).
+*   El de pose tiene soporte iOS marcado explícitamente como "en pruebas" (beta) por su propio autor.
+*   Correr dos plugins nativos distintos compitiendo por la misma cámara simultáneamente es una combinación que nadie ha probado en producción.
+
+**Decisión:** el cliente Flutter envía fotogramas JPEG livianos por WebSocket a un *framerate* controlado (~10 fps), y el backend reutiliza el mismo `VideoLandmarkExtractor` (MediaPipe Holistic completo) que ya está probado para el reconocimiento de video grabado. Funciona igual en las 3 plataformas sin depender de paquetes experimentales. Queda como TODO explícito revisitar client-side más adelante si el proyecto reduce su alcance a solo Android, o si el equipo invierte en escribir integraciones nativas propias contra el SDK oficial de Google (no los paquetes comunitarios actuales).
 
 ### 5.3 Fase 8 (Calibración): falta una definición de "terminado"
 "Calibrar el umbral `LSC_MAX_DTW_DISTANCE`" no es una tarea con fin claro sin un criterio numérico. Antes de escribir el script de `ai/evaluation/`, definir aquí qué métrica y qué valor mínimo se considera aceptable (ej. recall/precisión/F1 sobre el vocabulario piloto — ver Sección 28 de la especificación reconstruida). Sin esto, la fase nunca tiene un "listo" objetivo.

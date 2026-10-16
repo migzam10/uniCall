@@ -47,10 +47,21 @@ Como somos 3 personas trabajando en áreas distintas, cada vez que alguien haga 
 
 ### 📢 Notificación de Cambios
 * Respuesta a la petición #2 de Miguel: sí se va a integrar `model_viewer_plus` para el visor `.glb`/`.gltf` del avatar en la pantalla de videollamada.
-* Todavía sin resolver la petición #1 (MediaPipe client-side en Flutter) — es la decisión de arquitectura de Fase 7, se aborda después de cerrar la Fase 6.
+* **[2026-10-16] Respuesta a la petición #1 (MediaPipe en el celular) — CERRADA, vamos por el Plan B:**
+  Investigué el ecosistema real de paquetes Flutter para MediaPipe antes de decidir. Esto fue lo que encontré:
+  * **No hay ningún paquete "Holistic" unificado para Flutter** (ni MediaPipe Tasks API de Google lo ofrece ya a nivel nativo — solo tareas separadas de pose y manos, habría que combinar dos).
+  * Los dos candidatos reales:
+    * `hand_landmarker` (manos, MediaPipe real vía JNI) → **solo Android**, 11 likes, 826 descargas.
+    * `flutter_mp_pose_landmarker` (pose) → Android + iOS, pero el propio autor lo marca como **"initial support, still under testing"**, se instala vía git (no está publicado formal en pub.dev), un solo mantenedor, 6 likes.
+  * **Ninguno de los dos soporta Web.** Nuestro README dice Android/iOS/Web — ir client-side nos obligaría a cortar Web de entrada.
+  * Habría que correr dos plugins nativos de mantenedores distintos peleando por la misma cámara a la vez — combinación que nadie probó en producción.
+  * Lo único rescatable: el formato de manos si es compatible (21 puntos x/y/z, mismo MediaPipe real), y casualmente tu LSTM ya sacó la cara del vector (`VECTOR_SIZE=258`), así que si esto madura algún día el formato ya calzaría.
+  * **Decisión:** vamos por tu Plan B — la app manda fotogramas JPEG livianos por WebSocket a ~10fps, y el backend reusa el `VideoLandmarkExtractor` (Holistic completo) que ya está probado para reconocimiento de video grabado. Funciona igual en las 3 plataformas, sin apostarle a paquetes experimentales de un solo mantenedor. Documentado en README §5.2.
+  * Si en el futuro el proyecto se reduce a "solo Android" o el equipo quiere invertir en integraciones nativas propias (no los paquetes comunitarios de hoy), vale la pena revisitar esto — queda como TODO explícito, no descartado para siempre.
+  * Próximo paso de mi lado: definir el nuevo tipo de mensaje WebSocket para los frames (toca `signaling_client.dart` y `signaling.py`/`signaling_manager.py`) — lo arranco después de cerrar Fase 6.
 
 ### 🎯 Peticiones a IA o Backend
-* Ninguna por ahora.
+* A Miguel: con esto tu petición #1 queda resuelta — nada bloqueante de tu lado, ya puedes asumir que el flujo de reconocimiento en vivo va a llegar por frames al backend, no por landmarks ya calculados desde el celular.
 
 ---
 
