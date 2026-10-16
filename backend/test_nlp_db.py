@@ -5,7 +5,7 @@ import sys
 # Ajustar PYTHONPATH para que encuentre la carpeta app
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.core.database import SessionLocal
+from app.core.database import AsyncSessionLocal
 from app.ai.translation.nlp_engine import translate_text_to_sign_sequence
 
 async def test_translation():
@@ -14,8 +14,8 @@ async def test_translation():
     from app.core.database import Base
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        
-    async with SessionLocal() as db:
+
+    async with AsyncSessionLocal() as db:
         sentence = "Hola, yo quiero comer una manzana roja."
         print(f"Probando: '{sentence}'")
         res = await translate_text_to_sign_sequence(db, sentence)
