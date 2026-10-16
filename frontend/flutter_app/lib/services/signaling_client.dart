@@ -50,6 +50,15 @@ class SignalingClient {
 
   void sendCaption(String text) => send({'type': 'caption', 'text': text});
 
+  /// Reconocimiento de señas en vivo (Fase 7): "mantener presionado para
+  /// señas" dispara sendSignStart, manda frames sueltos con sendSignFrame
+  /// mientras está presionado, y sendSignStop al soltar.
+  void sendSignStart() => send({'type': 'sign-start'});
+
+  void sendSignFrame(String base64Data) => send({'type': 'sign-frame', 'data': base64Data});
+
+  void sendSignStop() => send({'type': 'sign-stop'});
+
   void sendLeave() => send({'type': 'leave'});
 
   Future<void> dispose() async {

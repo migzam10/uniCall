@@ -59,6 +59,11 @@ Como somos 3 personas trabajando en áreas distintas, cada vez que alguien haga 
   * **Decisión:** vamos por tu Plan B — la app manda fotogramas JPEG livianos por WebSocket a ~10fps, y el backend reusa el `VideoLandmarkExtractor` (Holistic completo) que ya está probado para reconocimiento de video grabado. Funciona igual en las 3 plataformas, sin apostarle a paquetes experimentales de un solo mantenedor. Documentado en README §5.2.
   * Si en el futuro el proyecto se reduce a "solo Android" o el equipo quiere invertir en integraciones nativas propias (no los paquetes comunitarios de hoy), vale la pena revisitar esto — queda como TODO explícito, no descartado para siempre.
   * Próximo paso de mi lado: definir el nuevo tipo de mensaje WebSocket para los frames (toca `signaling_client.dart` y `signaling.py`/`signaling_manager.py`) — lo arranco después de cerrar Fase 6.
+* **[2026-10-16] Implementado reconocimiento de señas en vivo (Fase 7), rama `feature/fase7-live-sign-recognition`:**
+  * Botón de "mantener presionado para señas" en la llamada (mismo patrón que el botón de voz). Mientras está presionado, manda fotogramas del video local por WebSocket (`sign-start`/`sign-frame`/`sign-stop`); al soltar, el backend corre DTW sobre lo acumulado (reusando `VideoLandmarkExtractor`/`dtw_distance`, nada nuevo del lado de IA) y le avisa al otro participante.
+  * El resultado reconocido se inyecta directo en el flujo de subtítulos/avatar/TTS que ya existe — no hay UI nueva que mantener.
+  * Ojo, Miguel: para que esto reconozca algo de verdad hace falta tener señas **publicadas con plantillas procesadas** en la BD (`process_video` de la Fase 5) — con la BD vacía siempre va a dar `matched: false`, que es el comportamiento correcto (nunca inventar), no un bug.
+  * Probado end-to-end con un script manual (2 usuarios por WebSocket, frames sintéticos) — confirmado que el mensaje `sign-recognized` llega bien formado. Falta prueba en dispositivo real con cámara.
 
 ### 🎯 Peticiones a IA o Backend
 * A Miguel: con esto tu petición #1 queda resuelta — nada bloqueante de tu lado, ya puedes asumir que el flujo de reconocimiento en vivo va a llegar por frames al backend, no por landmarks ya calculados desde el celular.
