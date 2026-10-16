@@ -100,6 +100,30 @@ class LSCRecognitionService:
                 matched=False, message="No se detectaron manos en el video. Intenta de nuevo con mejor iluminación."
             )
 
+        return await self.recognize_sequence(sequence, hand_frames)
+
+    async def recognize_sequence(self, sequence: list[list[float]], hand_frames: int) -> RecognizeResponse:
+        """
+        Compara (DTW) una secuencia de landmarks ya extraída contra las
+        plantillas de señas publicadas. Compartido por `recognize()` (clip
+        subido) y por el reconocimiento en vivo durante una llamada
+        (Fase 7, `LiveSignRecognizer`) — la política de "nunca inventar"
+        (sección 29) vive en un solo lugar para ambos caminos.
+        """
+        templates = await self.repo.list_templates_for_published_signs()
+        if not templates:
+            return RecognizeResponse(
+                matched=False,
+                message="Todavía no hay señas publicadas con plantillas procesadas para comparar.",
+            )
+
+        if not sequence:
+            return RecognizeResponse(matched=False, message="No se pudo leer el video enviado.")
+        if hand_frames == 0:
+            return RecognizeResponse(
+                matched=False, message="No se detectaron manos en el video. Intenta de nuevo con mejor iluminación."
+            )
+
         best_distance = float("inf")
         best_template: LSCSignTemplate | None = None
         best_sign = None

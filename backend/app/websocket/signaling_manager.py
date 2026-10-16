@@ -18,11 +18,17 @@ from dataclasses import dataclass, field
 
 from fastapi import WebSocket
 
+from app.ai.lsc.live_recognizer import LiveSignRecognizer
+
 
 @dataclass
 class CallRoom:
     call_id: uuid.UUID
     connections: dict[uuid.UUID, WebSocket] = field(default_factory=dict)
+    # Reconocimiento de señas en vivo en curso por usuario (Fase 7): existe
+    # mientras el usuario mantiene presionado el botón de señas, entre
+    # "sign-start" y "sign-stop".
+    recognizers: dict[uuid.UUID, LiveSignRecognizer] = field(default_factory=dict)
 
     async def broadcast(self, sender_id: uuid.UUID, message: dict) -> None:
         for user_id, ws in list(self.connections.items()):
@@ -54,6 +60,11 @@ class SignalingManager:
         if room is None:
             return
         room.connections.pop(user_id, None)
+        # Si se desconecta a mitad de una captura de señas (sin mandar
+        # "sign-stop"), cerrar el Holistic abierto para no dejarlo colgado.
+        recognizer = room.recognizers.pop(user_id, None)
+        if recognizer is not None:
+            recognizer.finish()
         if not room.connections:
             self._rooms.pop(call_id, None)
 
