@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -13,6 +14,10 @@ import 'signaling_client.dart';
 /// interpolación entre animaciones (decisión documentada en README §5.1:
 /// el blending queda como TODO explícito para una fase posterior).
 const _avatarSequenceStepDuration = Duration(milliseconds: 2500);
+
+/// Cada cuánto se captura y manda un fotograma mientras se mantiene
+/// presionado el botón de señas (Fase 7) — objetivo ~10fps.
+const _signFrameCaptureInterval = Duration(milliseconds: 100);
 
 enum CallEngineStatus { connecting, waitingForPeer, negotiating, connected, ended, error }
 
@@ -62,6 +67,12 @@ class CallEngine extends ChangeNotifier {
     if (currentSequenceIndex >= translation.sequence.length) return null;
     return translation.sequence[currentSequenceIndex];
   }
+
+  /// Reconocimiento de señas en vivo (Fase 7): mientras se mantiene
+  /// presionado el botón de señas, se capturan y mandan fotogramas del
+  /// video local propio. `isSigningActive` gatiza el botón en la UI.
+  bool isSigningActive = false;
+  Timer? _signFrameTimer;
 
   StreamSubscription? _signalingSubscription;
   String? _remotePeerId;
@@ -180,6 +191,19 @@ class CallEngine extends ChangeNotifier {
           unawaited(_translateAndPlay(remoteCaption!));
         }
         break;
+
+      case 'sign-recognized':
+        // Sección 29 ("nunca inventar"): si el backend no reconoció la
+        // seña con suficiente confianza, no se muestra nada — nunca se
+        // simula un reconocimiento que no ocurrió.
+        final matched = message['matched'] as bool? ?? false;
+        if (!matched) break;
+        final text = (message['meaning'] as String?) ?? (message['word'] as String?);
+        if (text == null || text.trim().isEmpty) break;
+        remoteCaption = text;
+        notifyListeners();
+        unawaited(_translateAndPlay(text));
+        break;
     }
   }
 
@@ -221,6 +245,41 @@ class CallEngine extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Arranca la captura de señas en vivo (Fase 7): avisa al backend con
+  /// "sign-start" y empieza a mandarle fotogramas del video local propio
+  /// a ~10fps mientras el usuario mantiene presionado el botón.
+  Future<void> startSigningCapture() async {
+    if (isSigningActive) return;
+    final videoTrack = localStream?.getVideoTracks().firstOrNull;
+    if (videoTrack == null) return;
+
+    isSigningActive = true;
+    notifyListeners();
+    signaling.sendSignStart();
+
+    _signFrameTimer = Timer.periodic(_signFrameCaptureInterval, (_) async {
+      try {
+        final frame = await videoTrack.captureFrame();
+        final base64Data = base64Encode(frame.asUint8List());
+        signaling.sendSignFrame(base64Data);
+      } catch (_) {
+        // Un fotograma suelto que falle no debe tumbar la captura.
+      }
+    });
+  }
+
+  /// Suelta el botón de señas: deja de mandar fotogramas y le avisa al
+  /// backend con "sign-stop" para que corra el reconocimiento sobre lo
+  /// acumulado.
+  void stopSigningCapture() {
+    if (!isSigningActive) return;
+    _signFrameTimer?.cancel();
+    _signFrameTimer = null;
+    isSigningActive = false;
+    notifyListeners();
+    signaling.sendSignStop();
+  }
+
   Future<void> _createAndSendOffer() async {
     final offer = await _peerConnection!.createOffer();
     await _peerConnection!.setLocalDescription(offer);
@@ -255,6 +314,7 @@ class CallEngine extends ChangeNotifier {
 
   Future<void> _cleanup() async {
     _sequenceTimer?.cancel();
+    _signFrameTimer?.cancel();
     await _signalingSubscription?.cancel();
     await signaling.dispose();
     for (final track in localStream?.getTracks() ?? <MediaStreamTrack>[]) {

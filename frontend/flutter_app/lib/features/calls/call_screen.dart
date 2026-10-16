@@ -291,6 +291,27 @@ class _CallScreenState extends ConsumerState<CallScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
+                  // Reconocimiento de señas en vivo (Fase 7): mantener
+                  // presionado manda fotogramas al backend; al soltar, se
+                  // corre el reconocimiento sobre lo acumulado.
+                  GestureDetector(
+                    onLongPressStart: (_) => engine.startSigningCapture(),
+                    onLongPressEnd: (_) => engine.stopSigningCapture(),
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: engine.isSigningActive ? StatusColors.translationActive : Colors.white24,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        engine.isSigningActive ? Icons.front_hand : Icons.front_hand_outlined,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
                   _CallButton(
                     icon: Icons.call_end,
                     onTap: () async {
