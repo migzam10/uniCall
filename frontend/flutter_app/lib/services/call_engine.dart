@@ -45,6 +45,9 @@ class CallEngine extends ChangeNotifier {
   MediaStream? localStream;
   MediaStream? remoteStream;
 
+  bool _remoteDescriptionSet = false;
+  final List<RTCIceCandidate> _pendingIceCandidates = [];
+
   CallEngineStatus status = CallEngineStatus.connecting;
   bool isMicEnabled = true;
   bool isCameraEnabled = true;
@@ -119,15 +122,17 @@ class CallEngine extends ChangeNotifier {
     }
 
     _peerConnection!.onTrack = (RTCTrackEvent event) {
+      debugPrint('[CallEngine] onTrack recibido: ${event.track.kind}, streams: ${event.streams.length}');
       if (event.streams.isNotEmpty) {
         remoteStream = event.streams.first;
-        status = CallEngineStatus.connected;
-        notifyListeners();
       }
+      status = CallEngineStatus.connected;
+      unawaited(Helper.setSpeakerphoneOn(true).catchError((e) => debugPrint('[CallEngine] setSpeakerphoneOn: $e')));
+      notifyListeners();
     };
 
     _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
-      if (candidate.candidate == null) return;
+      if (candidate.candidate == null || candidate.candidate!.isEmpty) return;
       signaling.sendIceCandidate({
         'candidate': candidate.candidate,
         'sdpMid': candidate.sdpMid,
@@ -136,74 +141,129 @@ class CallEngine extends ChangeNotifier {
     };
 
     _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
-      if (state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-          state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+      debugPrint('[CallEngine] onConnectionState: $state');
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
         status = CallEngineStatus.ended;
+        notifyListeners();
+      } else if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+        status = CallEngineStatus.error;
+        errorMessage = 'Falló la conexión de red entre los teléfonos.';
+        notifyListeners();
+      }
+    };
+
+    _peerConnection!.onIceConnectionState = (RTCIceConnectionState state) {
+      debugPrint('[CallEngine] onIceConnectionState: $state');
+      if (state == RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        status = CallEngineStatus.connected;
+        unawaited(Helper.setSpeakerphoneOn(true).catchError((e) => debugPrint('[CallEngine] setSpeakerphoneOn: $e')));
+        notifyListeners();
+      } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+        status = CallEngineStatus.error;
+        errorMessage = 'No se pudo conectar el audio y video con la otra persona.';
         notifyListeners();
       }
     };
   }
 
+  Future<void> _flushPendingIceCandidates() async {
+    if (_peerConnection == null) return;
+    for (final candidate in _pendingIceCandidates) {
+      try {
+        await _peerConnection!.addCandidate(candidate);
+      } catch (e) {
+        debugPrint('[CallEngine] Error al agregar candidate encolado: $e');
+      }
+    }
+    _pendingIceCandidates.clear();
+  }
+
   Future<void> _handleSignalingMessage(Map<String, dynamic> message) async {
     final type = message['type'] as String?;
 
-    switch (type) {
-      case 'peer-joined':
-        // El participante que YA estaba en la sala inicia la oferta hacia
-        // el que acaba de unirse (evita que ambos lados ofrezcan a la vez).
-        _remotePeerId = message['user_id'] as String?;
-        status = CallEngineStatus.negotiating;
-        notifyListeners();
-        await _createAndSendOffer();
-        break;
+    try {
+      switch (type) {
+        case 'peer-joined':
+          // El participante que YA estaba en la sala inicia la oferta hacia
+          // el que acaba de unirse (evita que ambos lados ofrezcan a la vez).
+          _remotePeerId = message['user_id'] as String?;
+          status = CallEngineStatus.negotiating;
+          notifyListeners();
+          await _createAndSendOffer();
+          break;
 
-      case 'offer':
-        _remotePeerId = message['from_user_id'] as String?;
-        await _peerConnection!.setRemoteDescription(RTCSessionDescription(message['sdp'] as String, 'offer'));
-        final answer = await _peerConnection!.createAnswer();
-        await _peerConnection!.setLocalDescription(answer);
-        signaling.sendAnswer(answer.sdp!);
-        break;
+        case 'offer':
+          _remotePeerId = message['from_user_id'] as String?;
+          await _peerConnection!.setRemoteDescription(
+            RTCSessionDescription(message['sdp'] as String, 'offer'),
+          );
+          _remoteDescriptionSet = true;
+          await _flushPendingIceCandidates();
 
-      case 'answer':
-        await _peerConnection!.setRemoteDescription(RTCSessionDescription(message['sdp'] as String, 'answer'));
-        break;
+          final answer = await _peerConnection!.createAnswer({
+            'mandatory': {
+              'OfferToReceiveAudio': true,
+              'OfferToReceiveVideo': true,
+            },
+            'optional': [],
+          });
+          await _peerConnection!.setLocalDescription(answer);
+          signaling.sendAnswer(answer.sdp!);
+          break;
 
-      case 'ice-candidate':
-        final candidateData = message['candidate'] as Map<String, dynamic>;
-        await _peerConnection!.addCandidate(RTCIceCandidate(
-          candidateData['candidate'] as String?,
-          candidateData['sdpMid'] as String?,
-          candidateData['sdpMLineIndex'] as int?,
-        ));
-        break;
+        case 'answer':
+          await _peerConnection!.setRemoteDescription(
+            RTCSessionDescription(message['sdp'] as String, 'answer'),
+          );
+          _remoteDescriptionSet = true;
+          await _flushPendingIceCandidates();
+          break;
 
-      case 'peer-left':
-        status = CallEngineStatus.ended;
-        notifyListeners();
-        break;
+        case 'ice-candidate':
+          final candidateData = message['candidate'] as Map<String, dynamic>?;
+          if (candidateData != null) {
+            final candidate = RTCIceCandidate(
+              candidateData['candidate'] as String?,
+              candidateData['sdpMid'] as String?,
+              candidateData['sdpMLineIndex'] as int?,
+            );
+            if (_remoteDescriptionSet && _peerConnection != null) {
+              await _peerConnection!.addCandidate(candidate);
+            } else {
+              _pendingIceCandidates.add(candidate);
+            }
+          }
+          break;
 
-      case 'caption':
-        remoteCaption = message['text'] as String?;
-        notifyListeners();
-        if (remoteCaption != null && remoteCaption!.trim().isNotEmpty) {
-          unawaited(_translateAndPlay(remoteCaption!));
-        }
-        break;
+        case 'peer-left':
+          status = CallEngineStatus.ended;
+          notifyListeners();
+          break;
 
-      case 'sign-recognized':
-        // Sección 29 ("nunca inventar"): si el backend no reconoció la
-        // seña con suficiente confianza, no se muestra nada — nunca se
-        // simula un reconocimiento que no ocurrió.
-        final matched = message['matched'] as bool? ?? false;
-        if (!matched) break;
-        final text = (message['meaning'] as String?) ?? (message['word'] as String?);
-        if (text == null || text.trim().isEmpty) break;
-        remoteCaption = text;
-        notifyListeners();
-        unawaited(_translateAndPlay(text));
-        break;
+        case 'caption':
+          remoteCaption = message['text'] as String?;
+          notifyListeners();
+          if (remoteCaption != null && remoteCaption!.trim().isNotEmpty) {
+            unawaited(_translateAndPlay(remoteCaption!));
+          }
+          break;
+
+        case 'sign-recognized':
+          // Sección 29 ("nunca inventar"): si el backend no reconoció la
+          // seña con suficiente confianza, no se muestra nada — nunca se
+          // simula un reconocimiento que no ocurrió.
+          final matched = message['matched'] as bool? ?? false;
+          if (!matched) break;
+          final text = (message['meaning'] as String?) ?? (message['word'] as String?);
+          if (text == null || text.trim().isEmpty) break;
+          remoteCaption = text;
+          notifyListeners();
+          unawaited(_translateAndPlay(text));
+          break;
+      }
+    } catch (e, stack) {
+      debugPrint('[CallEngine] Error al procesar mensaje ($type): $e\n$stack');
     }
   }
 
@@ -281,9 +341,22 @@ class CallEngine extends ChangeNotifier {
   }
 
   Future<void> _createAndSendOffer() async {
-    final offer = await _peerConnection!.createOffer();
-    await _peerConnection!.setLocalDescription(offer);
-    signaling.sendOffer(offer.sdp!);
+    try {
+      final offer = await _peerConnection!.createOffer({
+        'mandatory': {
+          'OfferToReceiveAudio': true,
+          'OfferToReceiveVideo': true,
+        },
+        'optional': [],
+      });
+      await _peerConnection!.setLocalDescription(offer);
+      signaling.sendOffer(offer.sdp!);
+    } catch (e) {
+      debugPrint('[CallEngine] Error en _createAndSendOffer: $e');
+      status = CallEngineStatus.error;
+      errorMessage = 'No se pudo iniciar la oferta de llamada.';
+      notifyListeners();
+    }
   }
 
   void toggleMic() {
@@ -315,14 +388,22 @@ class CallEngine extends ChangeNotifier {
   Future<void> _cleanup() async {
     _sequenceTimer?.cancel();
     _signFrameTimer?.cancel();
-    await _signalingSubscription?.cancel();
-    await signaling.dispose();
-    for (final track in localStream?.getTracks() ?? <MediaStreamTrack>[]) {
-      await track.stop();
-    }
-    await localStream?.dispose();
-    await _peerConnection?.close();
-    await _peerConnection?.dispose();
+    try {
+      await _signalingSubscription?.cancel();
+    } catch (_) {}
+    try {
+      await signaling.dispose();
+    } catch (_) {}
+    try {
+      for (final track in localStream?.getTracks() ?? <MediaStreamTrack>[]) {
+        await track.stop();
+      }
+      await localStream?.dispose();
+    } catch (_) {}
+    try {
+      await _peerConnection?.close();
+      await _peerConnection?.dispose();
+    } catch (_) {}
   }
 
   @override

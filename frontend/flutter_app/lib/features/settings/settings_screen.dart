@@ -54,17 +54,21 @@ class SettingsScreen extends ConsumerWidget {
                 value: prefs.voiceOutputEnabled,
                 onChanged: (v) => _update(ref, prefs.copyWith(voiceOutputEnabled: v)),
               ),
-              RadioListTile<VoicePreference>(
-                title: const Text('Voz femenina'),
-                value: VoicePreference.femenina,
+              RadioGroup<VoicePreference>(
                 groupValue: prefs.voicePreference,
                 onChanged: (v) => _update(ref, prefs.copyWith(voicePreference: v)),
-              ),
-              RadioListTile<VoicePreference>(
-                title: const Text('Voz masculina'),
-                value: VoicePreference.masculina,
-                groupValue: prefs.voicePreference,
-                onChanged: (v) => _update(ref, prefs.copyWith(voicePreference: v)),
+                child: const Column(
+                  children: [
+                    RadioListTile<VoicePreference>(
+                      title: Text('Voz femenina'),
+                      value: VoicePreference.femenina,
+                    ),
+                    RadioListTile<VoicePreference>(
+                      title: Text('Voz masculina'),
+                      value: VoicePreference.masculina,
+                    ),
+                  ],
+                ),
               ),
             ],
           );

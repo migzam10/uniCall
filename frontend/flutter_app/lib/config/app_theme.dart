@@ -41,7 +41,6 @@ class AppTheme {
       textTheme: base.textTheme.apply(
         bodyColor: textPrimary,
         displayColor: textPrimary,
-        fontSizeFactor: 1.05, // texto ligeramente más grande por defecto
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

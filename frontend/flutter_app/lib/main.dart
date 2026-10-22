@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,18 @@ import 'config/app_router.dart';
 import 'config/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('[FlutterError] ${details.exceptionAsString()}');
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[UncaughtPlatformError] $error\n$stack');
+    return true; // Evita que un error asíncrono no capturado cierre abruptamente la app
+  };
+
   runApp(const ProviderScope(child: LscApp()));
 }
 

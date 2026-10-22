@@ -19,11 +19,10 @@ class _LscSignsScreenState extends ConsumerState<LscSignsScreen> {
 
   Future<void> _showCreateDialog() async {
     final categories = await ref.read(lscAdminRepositoryProvider).listCategories();
+    if (!mounted) return;
     if (categories.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Primero crea al menos una categoría.')));
-      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Primero crea al menos una categoría.')));
       return;
     }
 
@@ -192,7 +191,7 @@ class _StatusBadge extends StatelessWidget {
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
       child: Text(status.label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
     );
   }

@@ -20,13 +20,12 @@ class _LscSignDetailScreenState extends ConsumerState<LscSignDetailScreen> {
   bool _uploadingAnimation = false;
 
   Future<void> _uploadVideo() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.video,
-      withData: false,
     );
-    if (result == null || result.files.single.path == null) return;
+    if (files.isEmpty || files.single.path == null) return;
 
-    final file = result.files.single;
+    final file = files.single;
     setState(() => _uploading = true);
     try {
       await ref.read(lscAdminRepositoryProvider).uploadVideo(widget.signId, file.path!, file.name);
@@ -42,14 +41,13 @@ class _LscSignDetailScreenState extends ConsumerState<LscSignDetailScreen> {
   }
 
   Future<void> _uploadAnimation() async {
-    final result = await FilePicker.platform.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['glb', 'gltf'],
-      withData: false,
     );
-    if (result == null || result.files.single.path == null) return;
+    if (files.isEmpty || files.single.path == null) return;
 
-    final file = result.files.single;
+    final file = files.single;
     setState(() => _uploadingAnimation = true);
     try {
       await ref.read(lscAdminRepositoryProvider).uploadAnimation(widget.signId, file.path!, file.name);

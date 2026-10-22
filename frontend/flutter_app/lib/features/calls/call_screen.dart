@@ -75,9 +75,10 @@ class _CallScreenState extends ConsumerState<CallScreen> {
 
   void _onEngineUpdate() {
     if (!mounted || _engine == null) return;
-    setState(() {
+    if (_remoteRenderer.srcObject != _engine!.remoteStream) {
       _remoteRenderer.srcObject = _engine!.remoteStream;
-    });
+    }
+    setState(() {});
     if (_engine!.status == CallEngineStatus.ended) {
       _endAndClose();
     }
@@ -170,7 +171,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       );
     }
 
-    if (_initError != null) {
+    final engine = _engine;
+    if (_initError != null || (engine != null && engine.status == CallEngineStatus.error)) {
+      final msg = _initError ?? engine?.errorMessage ?? 'Ocurrió un error en la videollamada.';
       return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
@@ -181,9 +184,9 @@ class _CallScreenState extends ConsumerState<CallScreen> {
               children: [
                 const Icon(Icons.error_outline, color: Colors.white, size: 48),
                 const SizedBox(height: 16),
-                Text(_initError!, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
+                Text(msg, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
                 const SizedBox(height: 24),
-                ElevatedButton(onPressed: () => context.pop(), child: const Text('Volver')),
+                ElevatedButton(onPressed: _endAndClose, child: const Text('Volver')),
               ],
             ),
           ),
@@ -191,7 +194,12 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       );
     }
 
-    final engine = _engine!;
+    if (engine == null) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,

@@ -187,7 +187,7 @@ class _RoleOption extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border.all(color: selected ? color : const Color(0xFFC7CDD4), width: selected ? 2 : 1),
             borderRadius: BorderRadius.circular(14),
-            color: selected ? color.withOpacity(0.06) : Colors.white,
+            color: selected ? color.withValues(alpha: 0.06) : Colors.white,
           ),
           child: Row(
             children: [
