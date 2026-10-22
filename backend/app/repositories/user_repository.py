@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,21 +23,38 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def get_by_username_or_email(self, identifier: str) -> User | None:
-        stmt = select(User).where(or_(User.username == identifier, User.email == identifier))
+        clean_id = identifier.strip().lower()
+        stmt = (
+            select(User)
+            .where(
+                or_(
+                    func.lower(User.username) == clean_id,
+                    func.lower(User.email) == clean_id,
+                )
+            )
+            .options(selectinload(User.profile), selectinload(User.preferences))
+        )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def exists_username_or_email(self, username: str, email: str) -> bool:
-        stmt = select(User.id).where(or_(User.username == username, User.email == email))
+        clean_username = username.strip().lower()
+        clean_email = email.strip().lower()
+        stmt = select(User.id).where(
+            or_(
+                func.lower(User.username) == clean_username,
+                func.lower(User.email) == clean_email,
+            )
+        )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none() is not None
 
     async def create(self, *, username: str, email: str, hashed_password: str, full_name: str, role) -> User:
         user = User(
-            username=username,
-            email=email,
+            username=username.strip(),
+            email=email.strip().lower(),
             hashed_password=hashed_password,
-            full_name=full_name,
+            full_name=full_name.strip(),
             role=role,
         )
         self.db.add(user)

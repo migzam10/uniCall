@@ -86,7 +86,13 @@ class CallService:
         return results
 
     def get_ice_servers(self) -> IceServersResponse:
-        servers = [IceServerOut(urls=settings.stun_server)]
+        servers = [
+            IceServerOut(urls="stun:stun.l.google.com:19302"),
+            IceServerOut(urls="stun:stun1.l.google.com:19302"),
+            IceServerOut(urls="stun:stun2.l.google.com:19302"),
+        ]
+        if settings.stun_server and settings.stun_server not in [s.urls for s in servers]:
+            servers.insert(0, IceServerOut(urls=settings.stun_server))
         if settings.turn_server:
             servers.append(
                 IceServerOut(

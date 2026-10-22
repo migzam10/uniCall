@@ -69,21 +69,27 @@ async def call_signaling(websocket: WebSocket, call_id: uuid.UUID, token: str | 
         await websocket.accept()
         room = await signaling_manager.connect(call_id, user_id, websocket)
         await call_repo.add_participant(call_id, user_id)
-        if signaling_manager.participant_count(call_id) >= 2:
+        count = signaling_manager.participant_count(call_id)
+        print(f"[WS-SIGNALING] User {user_id} CONNECTED to call {call_id}. Total participants: {count}", flush=True)
+        if count >= 2:
             await call_repo.mark_active(call)
 
         await room.broadcast(user_id, {"type": "peer-joined", "user_id": str(user_id)})
+        print(f"[WS-SIGNALING] Broadcasted peer-joined for user {user_id}", flush=True)
 
         try:
             while True:
                 message = await websocket.receive_json()
                 message_type = message.get("type")
+                print(f"[WS-SIGNALING] Received from user {user_id}: type={message_type}", flush=True)
 
                 if message_type == "leave":
+                    print(f"[WS-SIGNALING] User {user_id} explicitly requested leave", flush=True)
                     break
 
                 if message_type in {"offer", "answer", "ice-candidate", "caption"}:
                     await room.broadcast(user_id, {**message, "from_user_id": str(user_id)})
+                    print(f"[WS-SIGNALING] Broadcasted {message_type} from {user_id}", flush=True)
 
                 elif message_type == "sign-start":
                     # Si ya había una captura sin cerrar (reintento, doble
@@ -115,9 +121,12 @@ async def call_signaling(websocket: WebSocket, call_id: uuid.UUID, token: str | 
                         **result.model_dump(mode="json"),
                     })
 
-        except WebSocketDisconnect:
-            pass
+        except WebSocketDisconnect as e:
+            print(f"[WS-SIGNALING] WebSocketDisconnect user {user_id}: code={e.code}, reason={e.reason}", flush=True)
+        except Exception as e:
+            print(f"[WS-SIGNALING] Exception user {user_id}: {type(e).__name__}: {e}", flush=True)
         finally:
+            print(f"[WS-SIGNALING] Disconnecting user {user_id} from call {call_id}", flush=True)
             signaling_manager.disconnect(call_id, user_id)
             await call_repo.mark_participant_left(call_id, user_id)
             await room.broadcast(user_id, {"type": "peer-left", "user_id": str(user_id)})
